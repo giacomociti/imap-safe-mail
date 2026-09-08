@@ -32,14 +32,15 @@ mail.restore(&MessageId::new("42"), "INBOX")?;
 
 ## CLI: export recent mail as N-Quads
 
-The CLI always uses Rustls TLS with certificate verification and reads the password from an environment variable—never from a command-line argument. Gmail requires an app password for ordinary IMAP password authentication.
+The CLI always uses Rustls TLS with certificate verification and reads an authentication secret from an environment variable—never from a command-line argument. It supports password `LOGIN`, SASL `PLAIN`, widely deployed `XOAUTH2`, and RFC 7628 `OAUTHBEARER`.
 
 ```bash
-export GMAIL_APP_PASSWORD='your app password'
+export IMAP_AUTH_SECRET='your app password'
 cargo run --release -- fetch \
   --host imap.gmail.com \
   --username you@gmail.com \
-  --password-env GMAIL_APP_PASSWORD \
+  --auth login \
+  --secret-env IMAP_AUTH_SECRET \
   --mailbox INBOX \
   --limit 50 \
   --graph urn:email:you@gmail.com \
@@ -49,6 +50,18 @@ cargo run --release -- fetch \
 ```
 
 Omit `--include-body` to export metadata only. The default graph is `urn:email:<username>`.
+
+For a provider-issued OAuth access token, select the matching SASL mechanism instead of a password:
+
+```bash
+export IMAP_AUTH_SECRET='access-token'
+cargo run --release -- fetch \
+  --host imap.example.com --username you@example.com \
+  --auth oauthbearer --secret-env IMAP_AUTH_SECRET \
+  --output recent-mail.nq
+```
+
+The CLI intentionally does not acquire or refresh OAuth tokens: authorization endpoints, client registration, and scopes are provider-specific. Supply a valid short-lived token from your existing identity/OAuth workflow.
 
 ## Design constraints
 
