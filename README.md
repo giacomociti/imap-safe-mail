@@ -30,6 +30,26 @@ mail.restore(&MessageId::new("42"), "INBOX")?;
 # Ok::<(), imap_safe_mail::MailError>(())
 ```
 
+## CLI: export recent mail as N-Quads
+
+The CLI always uses Rustls TLS with certificate verification and reads the password from an environment variable—never from a command-line argument. Gmail requires an app password for ordinary IMAP password authentication.
+
+```bash
+export GMAIL_APP_PASSWORD='your app password'
+cargo run --release -- fetch \
+  --host imap.gmail.com \
+  --username you@gmail.com \
+  --password-env GMAIL_APP_PASSWORD \
+  --mailbox INBOX \
+  --limit 50 \
+  --graph urn:email:you@gmail.com \
+  --data-iri https://data.example.com/ \
+  --include-body \
+  --output recent-mail.nq
+```
+
+Omit `--include-body` to export metadata only. The default graph is `urn:email:<username>`.
+
 ## Design constraints
 
 - A message must have exactly one current mailbox in this API.

@@ -1,0 +1,88 @@
+use clap::{Args, Parser, Subcommand};
+use imap_safe_mail::{imap::MailReader, rdf::{message_to_nquads, RdfOptions}};
+use std::{env, fs::File, io::{self, BufWriter, Write}, path::PathBuf};
+
+#[derive(Parser, Debug)]
+#[command(name = "imap-safe-mail", about = "Fetch recent IMAP messages and save mbox-rdf-compatible N-Quads")]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Fetch the most recent messages from one IMAP mailbox.
+    Fetch(FetchArgs),
+}
+
+#[derive(Args, Debug)]
+struct FetchArgs {
+    /// IMAP hostname (for Gmail: imap.gmail.com)
+    #[arg(long)]
+    host: String,
+
+    /// Implicit-TLS IMAP port
+    #[arg(long, default_value_t = 993)]
+    port: u16,
+
+    /// IMAP login name, usually an email address
+    #[arg(long)]
+    username: String,
+
+    /// Name of the environment variable holding the IMAP password or app password
+    #[arg(long, default_value = "IMAP_PASSWORD")]
+    password_env: String,
+
+    /// Mailbox to fetch from
+    #[arg(long, default_value = "INBOX")]
+    mailbox: String,
+
+    /// Maximum number of newest messages to retrieve
+    #[arg(long, default_value_t = 50)]
+    limit: usize,
+
+    /// Output N-Quads path
+    #[arg(short, long, default_value = "mail.nq")]
+    output: PathBuf,
+
+    /// Base IRI for generated message, folder, and attachment identifiers
+    #[arg(long, default_value = "https://example.org/data/")]
+    data_iri: String,
+
+    /// Named graph IRI. Defaults to urn:email:<username>.
+    #[arg(long)]
+    graph: Option<String>,
+
+    /// Include the RFC 822 body as mail:bodyText (may include sensitive content)
+    #[arg(long, default_value_t = false)]
+    include_body: bool,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let cli = Cli::parse();
+    match cli.command {
+        Command::Fetch(args) => fetch(args),
+    }
+}
+
+fn fetch(args: FetchArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let password = env::var(&args.password_env).map_err(|_| {
+        io::Error::new(io::ErrorKind::NotFound, format!("password environment variable {:?} is not set", args.password_env))
+    })?;
+    let graph = args.graph.unwrap_or_else(|| format!("urn:email:{}", args.username));
+    let mut reader = MailReader::connect(&args.host, args.port, &args.username, &password)?;
+    let uids = reader.recent_uids(&args.mailbox, args.limit)?;
+    let mut output = BufWriter::new(File::create(&args.output)?);
+    let rdf_options = RdfOptions { data_iri: args.data_iri, graph: Some(graph), include_body: args.include_body };
+    let mut fetched = 0usize;
+
+    for uid in uids {
+        let message = reader.fetch_message(&args.mailbox, uid)?;
+        output.write_all(message_to_nquads(&message, &rdf_options).as_bytes())?;
+        fetched += 1;
+    }
+    output.flush()?;
+    reader.logout()?;
+    println!("Wrote {fetched} messages to {}", args.output.display());
+    Ok(())
+}

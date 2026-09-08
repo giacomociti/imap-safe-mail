@@ -14,4 +14,5 @@ path = "src/lib.rs"
 greenmail-tests = []
 
 [dependencies]
+clap = { version = "4.5.58", features = ["derive"] }
 imap = { version = "3.0.0-alpha.15", default-features = false, features = ["rustls-tls"] }

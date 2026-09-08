@@ -71,6 +71,15 @@ impl MailReader {
             .collect())
     }
 
+    /// Return the newest message UIDs in a mailbox, newest first.
+    pub fn recent_uids(&mut self, mailbox: &str, limit: usize) -> ImapResult<Vec<u32>> {
+        self.session.select(mailbox)?;
+        let mut uids: Vec<u32> = self.session.uid_search("ALL")?.into_iter().collect();
+        uids.sort_unstable_by(|left, right| right.cmp(left));
+        uids.truncate(limit);
+        Ok(uids)
+    }
+
     /// Fetch one RFC 822 message by UID without setting `\Seen`.
     pub fn fetch_message(&mut self, mailbox: impl Into<String>, uid: u32) -> ImapResult<FetchedMessage> {
         let mailbox = mailbox.into();
