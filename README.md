@@ -1,0 +1,43 @@
+# imap-safe-mail
+
+A safety-first mailbox API for agents and applications.
+
+Its public mutation vocabulary is deliberately small:
+
+- `trash(message)` moves a message into the server's mailbox marked `\\Trash`.
+- `restore(message, destination)` moves a trashed message back to a normal mailbox.
+
+It intentionally has no `expunge`, permanent-delete, or raw `\\Deleted` API. This mirrors the familiar recoverable-trash behaviour of mail clients while keeping destructive IMAP primitives outside the application boundary.
+
+## Status
+
+This repository currently provides the domain model and a deterministic in-memory store, including tests for the safety invariants. An IMAP adapter is the next layer: it should discover the `\\Trash` mailbox from `LIST` attributes and use `MOVE` when available (falling back to `COPY`, mark-original-deleted, and scoped expunge only within the adapter if a server lacks `MOVE`).
+
+## Quick example
+
+```rust
+use imap_safe_mail::{InMemoryMailStore, MailboxRole, MailStore, MessageId};
+
+let mut mail = InMemoryMailStore::new();
+mail.add_mailbox("INBOX", MailboxRole::Inbox);
+mail.add_mailbox("Trash", MailboxRole::Trash);
+mail.add_message("INBOX", MessageId::new("42"))?;
+
+mail.trash(&MessageId::new("42"))?;
+mail.restore(&MessageId::new("42"), "INBOX")?;
+# Ok::<(), imap_safe_mail::MailError>(())
+```
+
+## Design constraints
+
+- A message must have exactly one current mailbox in this API.
+- Trash is a normal mailbox with the special `\\Trash` role, not the IMAP `\\Deleted` flag.
+- Restore cannot target a Trash mailbox.
+- The implementation records auditable `Trashed` and `Restored` events.
+- The public trait has no operation capable of permanent deletion.
+
+## Development
+
+```bash
+cargo test
+```

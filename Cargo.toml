@@ -1,0 +1,10 @@
+[package]
+name = "imap-safe-mail"
+version = "0.1.0"
+edition = "2024"
+description = "A safety-first mailbox API that supports trash and restore, never expunge."
+license = "MIT"
+
+[lib]
+name = "imap_safe_mail"
+path = "src/lib.rs"
