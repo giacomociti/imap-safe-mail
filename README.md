@@ -9,11 +9,11 @@ Its public mutation vocabulary is deliberately small:
 
 It intentionally has no `expunge`, permanent-delete, or raw `\\Deleted` API. This mirrors the familiar recoverable-trash behaviour of mail clients while keeping destructive IMAP primitives outside the application boundary.
 
-It can also fetch raw RFC 822 messages over an already-authenticated IMAP transport using only `LIST`, `SELECT`, and `UID FETCH ... BODY.PEEK[]`; `BODY.PEEK[]` avoids changing the `\\Seen` flag. Fetched messages project to N-Triples or N-Quads using the same `https://mail.described.at/` and `http://schema.org/` vocabulary as `mbox-rdf`.
+It fetches raw RFC 822 messages via the Rust [`imap`](https://crates.io/crates/imap) client with Rustls TLS and certificate verification. The public wrapper permits only `LIST`, `SELECT`, and `UID FETCH ... BODY.PEEK[]`; `BODY.PEEK[]` avoids changing the `\\Seen` flag. Fetched messages project to N-Triples or N-Quads using the same `https://mail.described.at/` and `http://schema.org/` vocabulary as `mbox-rdf`.
 
 ## Status
 
-This repository provides the domain model, a deterministic in-memory store, a minimal read-only IMAP session, and an RDF projection. `mail-shapes.ttl` is copied from `mbox-rdf` so both projects use the same SHACL contract. The next layer is TLS connection/authentication and a production IMAP mutation adapter that discovers the `\\Trash` mailbox and uses `MOVE` when available.
+This repository provides the domain model, a deterministic in-memory store, a TLS-protected read-only IMAP client, and an RDF projection. `mail-shapes.ttl` is copied from `mbox-rdf` so both projects use the same SHACL contract. The next layer is a production mutation adapter that discovers the `\\Trash` mailbox and uses `MOVE` when available.
 
 ## Quick example
 

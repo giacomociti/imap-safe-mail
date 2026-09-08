@@ -8,3 +8,6 @@ license = "MIT"
 [lib]
 name = "imap_safe_mail"
 path = "src/lib.rs"
+
+[dependencies]
+imap = { version = "3.0.0-alpha.15", default-features = false, features = ["rustls-tls"] }
