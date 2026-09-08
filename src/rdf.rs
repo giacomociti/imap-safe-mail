@@ -176,6 +176,7 @@ mod tests {
             uid: 9,
             source: ImapSource { account: "alice@example.org".into(), mailbox: "INBOX".into() },
             rfc822: b"Message-ID: <a@example.org>\r\nSubject: Re: Hello\r\nFrom: Alice <alice@example.org>\r\n\r\nBody".to_vec(),
+            is_seen: false,
         };
         let rdf = message_to_nquads(&message, &RdfOptions { graph: Some("urn:email:alice@example.org".into()), include_body: true, ..Default::default() });
         assert!(rdf.contains("<https://mail.described.at/Message>"));

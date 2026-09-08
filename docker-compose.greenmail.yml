@@ -1,0 +1,11 @@
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.13
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.all
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.auth.disabled
+    ports:
+      - "3025:3025" # SMTP injection for the integration test
+      - "3993:3993" # IMAPS

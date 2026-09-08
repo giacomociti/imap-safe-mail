@@ -9,5 +9,9 @@ license = "MIT"
 name = "imap_safe_mail"
 path = "src/lib.rs"
 
+[features]
+# Only for the local GreenMail container, whose bundled TLS certificate is self-signed.
+greenmail-tests = []
+
 [dependencies]
 imap = { version = "3.0.0-alpha.15", default-features = false, features = ["rustls-tls"] }

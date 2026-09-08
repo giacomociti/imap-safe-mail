@@ -43,3 +43,15 @@ mail.restore(&MessageId::new("42"), "INBOX")?;
 ```bash
 cargo test
 ```
+
+### GreenMail integration test
+
+The default tests are hermetic. The opt-in integration test starts a local GreenMail container, injects a message over SMTP, then logs into GreenMail over IMAPS and fetches it through `MailReader`.
+
+```bash
+docker compose -f docker-compose.greenmail.yml up -d
+cargo test --features greenmail-tests --test greenmail -- --test-threads=1
+docker compose -f docker-compose.greenmail.yml down -v
+```
+
+GreenMail's bundled certificate is deliberately self-signed. The one test-only constructor that bypasses certificate validation exists only under `greenmail-tests`; production builds retain Rustls certificate verification.
