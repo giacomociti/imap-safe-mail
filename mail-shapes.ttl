@@ -1,0 +1,270 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix mail: <https://mail.described.at/> .
+@prefix schema: <http://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ------------------------------------------------------------------
+# mail:Message (also a schema:CreativeWork)
+# ------------------------------------------------------------------
+mail:MessageShape a sh:NodeShape ;
+  sh:targetClass mail:Message ;
+  sh:description "Shape for an email message" ;
+
+  # Required
+  sh:property [
+    sh:path rdf:type ;
+    sh:hasValue mail:Message ;
+    sh:minCount 1 ;
+  ] ;
+  sh:property [
+    sh:path mail:folder ;
+    sh:class mail:Mailbox ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Mailbox folder containing this message" ;
+  ] ;
+  sh:property [
+    sh:path mail:sourcePath ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Local filesystem path to the source mbox" ;
+  ] ;
+  sh:property [
+    sh:path mail:size ;
+    sh:datatype xsd:integer ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Raw RFC822 message size in bytes" ;
+  ] ;
+
+  # Optional (0..1)
+  sh:property [
+    sh:path mail:messageId ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "RFC 822 Message-ID" ;
+  ] ;
+  sh:property [
+    sh:path mail:mid ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 ;
+    sh:description "Thunderbird-compatible mid: link" ;
+  ] ;
+  sh:property [
+    sh:path mail:subject ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path mail:normalizedSubject ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Subject with Re:/Fwd: prefixes stripped" ;
+  ] ;
+  sh:property [
+    sh:path schema:dateCreated ;
+    sh:datatype xsd:dateTime ;
+    sh:maxCount 1 ;
+    sh:description "Date the message was sent" ;
+  ] ;
+  sh:property [
+    sh:path schema:dateReceived ;
+    sh:datatype xsd:dateTime ;
+    sh:maxCount 1 ;
+    sh:description "Date the message was received (from Received header)" ;
+  ] ;
+  sh:property [
+    sh:path mail:userAgent ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Mail client / User-Agent" ;
+  ] ;
+  sh:property [
+    sh:path mail:bodyText ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path mail:thread ;
+    sh:class mail:Thread ;
+    sh:maxCount 1 ;
+    sh:description "Conversation thread" ;
+  ] ;
+  sh:property [
+    sh:path mail:belongsToList ;
+    sh:class mail:MailingList ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path mail:attachmentCount ;
+    sh:datatype xsd:integer ;
+    sh:maxCount 1 ;
+    sh:description "Number of attachments (only present if > 0)" ;
+  ] ;
+
+  # Optional (0..n)
+  sh:property [
+    sh:path mail:from ;
+    sh:nodeKind sh:IRI ;
+    sh:description "Sender (mailto: URI)" ;
+  ] ;
+  sh:property [
+    sh:path mail:to ;
+    sh:nodeKind sh:IRI ;
+    sh:description "Primary recipients (mailto: URIs)" ;
+  ] ;
+  sh:property [
+    sh:path mail:cc ;
+    sh:nodeKind sh:IRI ;
+    sh:description "CC recipients" ;
+  ] ;
+  sh:property [
+    sh:path mail:bcc ;
+    sh:nodeKind sh:IRI ;
+    sh:description "BCC recipients" ;
+  ] ;
+  sh:property [
+    sh:path mail:replyTo ;
+    sh:nodeKind sh:IRI ;
+    sh:description "Reply-To address" ;
+  ] ;
+  sh:property [
+    sh:path mail:inReplyTo ;
+    sh:class mail:Message ;
+    sh:description "Parent message" ;
+  ] ;
+  sh:property [
+    sh:path mail:references ;
+    sh:class mail:Message ;
+    sh:description "Ancestor messages in the thread" ;
+  ] ;
+  sh:property [
+    sh:path schema:associatedMedia ;
+    sh:class schema:MediaObject ;
+    sh:description "Attached files" ;
+  ] ;
+  sh:property [
+    sh:path mail:linksTo ;
+    sh:nodeKind sh:IRI ;
+    sh:description "URLs mentioned in body" ;
+  ] .
+
+# ------------------------------------------------------------------
+# mail:Account (identified by mailto: URI)
+# ------------------------------------------------------------------
+mail:AccountShape a sh:NodeShape ;
+  sh:targetClass mail:Account ;
+  sh:description "An email account, identified by its mailto: URI" ;
+
+  sh:property [
+    sh:path rdf:type ;
+    sh:hasValue mail:Account ;
+    sh:minCount 1 ;
+  ] ;
+  sh:property [
+    sh:path schema:email ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Plain email address string (without mailto: prefix)" ;
+  ] ;
+  sh:property [
+    sh:path mail:domain ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "Lowercased domain part of the email address (e.g. \"sk.zh.ch\"), indexed for ql:has-word text search" ;
+  ] ;
+  # Optional
+  sh:property [
+    sh:path schema:name ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Display name" ;
+  ] .
+
+# ------------------------------------------------------------------
+# mail:Thread
+# ------------------------------------------------------------------
+mail:ThreadShape a sh:NodeShape ;
+  sh:targetClass mail:Thread ;
+  sh:description "A conversation thread (messages link to it via mail:thread)" ;
+
+  sh:property [
+    sh:path rdf:type ;
+    sh:hasValue mail:Thread ;
+    sh:minCount 1 ;
+  ] .
+
+# ------------------------------------------------------------------
+# mail:MailingList
+# ------------------------------------------------------------------
+mail:MailingListShape a sh:NodeShape ;
+  sh:targetClass mail:MailingList ;
+  sh:description "A mailing list or discussion group" ;
+
+  sh:property [
+    sh:path rdf:type ;
+    sh:hasValue mail:MailingList ;
+    sh:minCount 1 ;
+  ] ;
+  sh:property [
+    sh:path mail:listId ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "List-Id header value" ;
+  ] ;
+  # Optional
+  sh:property [
+    sh:path mail:listArchive ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 ;
+  ] .
+
+# ------------------------------------------------------------------
+# schema:MediaObject (attachments)
+# ------------------------------------------------------------------
+mail:MediaObjectShape a sh:NodeShape ;
+  sh:targetClass schema:MediaObject ;
+  sh:description "An email attachment" ;
+
+  # Required
+  sh:property [
+    sh:path rdf:type ;
+    sh:hasValue schema:MediaObject ;
+    sh:minCount 1 ;
+  ] ;
+  sh:property [
+    sh:path schema:sha256 ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "SHA-256 hash of attachment content" ;
+  ] ;
+  sh:property [
+    sh:path schema:encodingFormat ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ; sh:maxCount 1 ;
+    sh:description "MIME type" ;
+  ] ;
+  # Optional
+  sh:property [
+    sh:path schema:name ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Filename" ;
+  ] ;
+  sh:property [
+    sh:path schema:contentSize ;
+    sh:datatype xsd:integer ;
+    sh:maxCount 1 ;
+    sh:description "Size in bytes" ;
+  ] ;
+  sh:property [
+    sh:path schema:text ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "Text attachment body content (only with --include-attachments, text/* MIME types)" ;
+  ] ;
+  sh:property [
+    sh:path schema:contentUrl ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "File URL to extracted binary attachment (only with --include-attachments, non-text MIME types)" ;
+  ] .

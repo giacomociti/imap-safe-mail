@@ -9,9 +9,11 @@ Its public mutation vocabulary is deliberately small:
 
 It intentionally has no `expunge`, permanent-delete, or raw `\\Deleted` API. This mirrors the familiar recoverable-trash behaviour of mail clients while keeping destructive IMAP primitives outside the application boundary.
 
+It can also fetch raw RFC 822 messages over an already-authenticated IMAP transport using only `LIST`, `SELECT`, and `UID FETCH ... BODY.PEEK[]`; `BODY.PEEK[]` avoids changing the `\\Seen` flag. Fetched messages project to N-Triples or N-Quads using the same `https://mail.described.at/` and `http://schema.org/` vocabulary as `mbox-rdf`.
+
 ## Status
 
-This repository currently provides the domain model and a deterministic in-memory store, including tests for the safety invariants. An IMAP adapter is the next layer: it should discover the `\\Trash` mailbox from `LIST` attributes and use `MOVE` when available (falling back to `COPY`, mark-original-deleted, and scoped expunge only within the adapter if a server lacks `MOVE`).
+This repository provides the domain model, a deterministic in-memory store, a minimal read-only IMAP session, and an RDF projection. `mail-shapes.ttl` is copied from `mbox-rdf` so both projects use the same SHACL contract. The next layer is TLS connection/authentication and a production IMAP mutation adapter that discovers the `\\Trash` mailbox and uses `MOVE` when available.
 
 ## Quick example
 

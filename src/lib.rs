@@ -4,6 +4,9 @@
 //! application operations. Production adapters should implement [`MailStore`]
 //! with `MOVE` to/from a mailbox carrying the IMAP `\\Trash` special-use flag.
 
+pub mod imap;
+pub mod rdf;
+
 use std::collections::BTreeMap;
 use std::fmt;
 
