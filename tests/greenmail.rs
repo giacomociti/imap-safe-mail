@@ -11,14 +11,21 @@ fn fetches_a_real_message_from_greenmail_over_imaps_without_marking_it_seen() {
     let user = format!("reader-{}@localhost", std::process::id());
     send_fixture_message(&user);
 
-    let mut reader = MailReader::connect_unverified_greenmail("127.0.0.1", 3993, &user, "test-password")
-        .expect("connect to the local GreenMail IMAPS service");
+    let mut reader =
+        MailReader::connect_unverified_greenmail("127.0.0.1", 3993, &user, "test-password")
+            .expect("connect to the local GreenMail IMAPS service");
     let mailboxes = reader.list_mailboxes().expect("list mailboxes");
-    assert!(mailboxes.iter().any(|mailbox| mailbox.eq_ignore_ascii_case("INBOX")));
+    assert!(
+        mailboxes
+            .iter()
+            .any(|mailbox| mailbox.eq_ignore_ascii_case("INBOX"))
+    );
 
     // The Compose service is created afresh for this suite, so the injected
     // message has UID 1. Fetching uses BODY.PEEK[] in MailReader.
-    let message = reader.fetch_message("INBOX", 1).expect("fetch fixture by UID");
+    let message = reader
+        .fetch_message("INBOX", 1)
+        .expect("fetch fixture by UID");
     let raw = String::from_utf8(message.rfc822).expect("fixture is UTF-8");
     assert!(!message.is_seen, "BODY.PEEK[] must not set the \\Seen flag");
     assert!(raw.contains("Subject: GreenMail integration fixture"));
@@ -41,7 +48,10 @@ fn send_fixture_message(recipient: &str) {
 }
 
 fn command(stream: &mut BufReader<TcpStream>, command: &str) {
-    stream.get_mut().write_all(format!("{command}\r\n").as_bytes()).expect("write SMTP command");
+    stream
+        .get_mut()
+        .write_all(format!("{command}\r\n").as_bytes())
+        .expect("write SMTP command");
     stream.get_mut().flush().expect("flush SMTP command");
     expect_ok(stream);
 }
@@ -49,7 +59,10 @@ fn command(stream: &mut BufReader<TcpStream>, command: &str) {
 fn expect_ok(stream: &mut BufReader<TcpStream>) {
     let mut line = String::new();
     stream.read_line(&mut line).expect("read SMTP response");
-    assert!(line.starts_with('2') || line.starts_with('3'), "unexpected SMTP response: {line}");
+    assert!(
+        line.starts_with('2') || line.starts_with('3'),
+        "unexpected SMTP response: {line}"
+    );
     // EHLO is a multi-line response. Drain it until the final `250 ` line.
     while line.starts_with("250-") {
         line.clear();

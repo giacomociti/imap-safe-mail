@@ -38,8 +38,16 @@ pub enum MailboxRole {
 /// Events emitted by safe state transitions for audit and user interfaces.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MailEvent {
-    Trashed { message: MessageId, from: String, to: String },
-    Restored { message: MessageId, from: String, to: String },
+    Trashed {
+        message: MessageId,
+        from: String,
+        to: String,
+    },
+    Restored {
+        message: MessageId,
+        from: String,
+        to: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,7 +133,11 @@ impl MailStore for InMemoryMailStore {
         }
 
         self.locations.insert(message.clone(), to.clone());
-        self.events.push(MailEvent::Trashed { message: message.clone(), from, to });
+        self.events.push(MailEvent::Trashed {
+            message: message.clone(),
+            from,
+            to,
+        });
         Ok(())
     }
 
@@ -145,7 +157,8 @@ impl MailStore for InMemoryMailStore {
             return Err(MailError::DestinationIsTrash(destination.to_owned()));
         }
 
-        self.locations.insert(message.clone(), destination.to_owned());
+        self.locations
+            .insert(message.clone(), destination.to_owned());
         self.events.push(MailEvent::Restored {
             message: message.clone(),
             from,
@@ -180,11 +193,14 @@ mod tests {
         store.trash(&id).unwrap();
 
         assert_eq!(store.mailbox_of(&id), Some("Trash"));
-        assert_eq!(store.events(), &[MailEvent::Trashed {
-            message: id,
-            from: "INBOX".into(),
-            to: "Trash".into(),
-        }]);
+        assert_eq!(
+            store.events(),
+            &[MailEvent::Trashed {
+                message: id,
+                from: "INBOX".into(),
+                to: "Trash".into(),
+            }]
+        );
     }
 
     #[test]
@@ -196,7 +212,10 @@ mod tests {
         store.restore(&id, "Archive").unwrap();
 
         assert_eq!(store.mailbox_of(&id), Some("Archive"));
-        assert!(matches!(store.events().last(), Some(MailEvent::Restored { .. })));
+        assert!(matches!(
+            store.events().last(),
+            Some(MailEvent::Restored { .. })
+        ));
     }
 
     #[test]
@@ -204,7 +223,10 @@ mod tests {
         let mut store = store();
         let id = MessageId::new("uid:7");
 
-        assert_eq!(store.restore(&id, "Trash"), Err(MailError::DestinationIsTrash("Trash".into())));
+        assert_eq!(
+            store.restore(&id, "Trash"),
+            Err(MailError::DestinationIsTrash("Trash".into()))
+        );
     }
 
     #[test]
@@ -217,3 +239,4 @@ mod tests {
         assert_eq!(store.trash(&id), Err(MailError::TrashMailboxMissing));
     }
 }
+pub mod sync;

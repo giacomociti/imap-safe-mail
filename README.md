@@ -63,6 +63,35 @@ cargo run --release -- fetch \
 
 The CLI intentionally does not acquire or refresh OAuth tokens: authorization endpoints, client registration, and scopes are provider-specific. Supply a valid short-lived token from your existing identity/OAuth workflow.
 
+## Incremental triplestore sync (QRESYNC)
+
+`sync` writes a standard SPARQL 1.1 Update document. The first run exports the
+whole mailbox; later runs enable QRESYNC when the server advertises both
+`QRESYNC` and `ENABLE`, and request only messages added or changed after the
+saved `HIGHESTMODSEQ`, plus `VANISHED` UIDs. The output deletes the former RDF
+projection for every changed/vanished UID and inserts the new projection into
+one named graph.
+
+```bash
+export IMAP_AUTH_SECRET='your app password or OAuth access token'
+cargo run --release -- sync \
+  --host imap.example.com --username you@example.com \
+  --auth oauthbearer --mailbox INBOX \
+  --state .imap-safe-mail/example-inbox.cursor \
+  --graph https://data.example.com/graph/mail \
+  --data-iri https://data.example.com/ \
+  --sparql-endpoint https://triplestore.example.com/sparql \
+  --output inbox.ru
+```
+
+Use a separate `--state` file for every account and mailbox. A cursor is saved
+only after the endpoint accepts the update. If `--sparql-endpoint` is omitted,
+the update file is still produced but the cursor deliberately remains unchanged
+so no server changes can be lost. Since every changed message is deleted then
+reinserted, replaying the same document is safe. Servers without QRESYNC (or without a usable
+`HIGHESTMODSEQ`) deliberately receive a full refresh, rather than an unsafe
+incremental approximation.
+
 ## Design constraints
 
 - A message must have exactly one current mailbox in this API.
