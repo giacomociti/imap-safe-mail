@@ -80,6 +80,7 @@ cargo run --release -- sync \
   --state .imap-safe-mail/example-inbox.cursor \
   --graph https://data.example.com/graph/mail \
   --data-iri https://data.example.com/ \
+  --sparql-auth bearer --sparql-auth-env QLEVER_ACCESS_TOKEN \
   --sparql-endpoint https://triplestore.example.com/sparql \
   --output inbox.ru
 ```
@@ -91,6 +92,19 @@ so no server changes can be lost. Since every changed message is deleted then
 reinserted, replaying the same document is safe. Servers without QRESYNC (or without a usable
 `HIGHESTMODSEQ`) deliberately receive a full refresh, rather than an unsafe
 incremental approximation.
+
+For QLever, configure the server access token and export the same value locally:
+
+```bash
+export QLEVER_ACCESS_TOKEN='...'
+```
+
+QLever accepts SPARQL Updates with `Authorization: Bearer <token>`, which is
+exactly what `--sparql-auth bearer` sends. The token is passed to `curl` through
+stdin rather than a command-line argument. For other stores, `--sparql-auth
+basic --sparql-auth-env SPARQL_BASIC` expects `username:password`; API-key
+providers can use `--sparql-auth header --sparql-header-name X-API-Key
+--sparql-auth-env SPARQL_API_KEY`.
 
 ## Design constraints
 

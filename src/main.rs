@@ -9,7 +9,7 @@ use std::{
     fs::File,
     io::{self, BufWriter, Write},
     path::PathBuf,
-    process::Command as ProcessCommand,
+    process::{Command as ProcessCommand, Stdio},
 };
 
 #[derive(Parser, Debug)]
@@ -59,6 +59,15 @@ struct SyncArgs {
     /// SPARQL 1.1 Update endpoint. When set, the CLI applies the update with curl and only then advances the QRESYNC cursor.
     #[arg(long)]
     sparql_endpoint: Option<String>,
+    /// Authentication scheme for the SPARQL endpoint
+    #[arg(long, value_enum, requires = "sparql_auth_env")]
+    sparql_auth: Option<SparqlAuthArg>,
+    /// Environment variable holding the SPARQL credential. Bearer: token; Basic: username:password; Header: header value.
+    #[arg(long, requires = "sparql_auth")]
+    sparql_auth_env: Option<String>,
+    /// Header name for `--sparql-auth header` (for example `X-API-Key`)
+    #[arg(long, requires_if("header", "sparql_auth"))]
+    sparql_header_name: Option<String>,
     /// Base IRI for generated message, folder, and attachment identifiers
     #[arg(long, default_value = "https://example.org/data/")]
     data_iri: String,
@@ -125,6 +134,16 @@ enum AuthArg {
     Oauthbearer,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum SparqlAuthArg {
+    /// `Authorization: Bearer <token>`; this is QLever's documented update authentication.
+    Bearer,
+    /// HTTP Basic authentication; the environment variable must contain `username:password`.
+    Basic,
+    /// A custom header; provide its name with `--sparql-header-name`.
+    Header,
+}
+
 impl From<AuthArg> for Authentication {
     fn from(value: AuthArg) -> Self {
         match value {
@@ -154,6 +173,11 @@ fn sync(args: SyncArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
             ),
         )
     })?;
+    let endpoint_auth = if args.sparql_endpoint.is_some() {
+        sparql_authentication(&args)?
+    } else {
+        None
+    };
     let graph = args
         .graph
         .unwrap_or_else(|| format!("urn:email:{}", args.username));
@@ -178,7 +202,7 @@ fn sync(args: SyncArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
     // Never advance an IMAP cursor just because a local file was created. The
     // cursor represents what the triplestore has accepted, not what was fetched.
     if let Some(endpoint) = args.sparql_endpoint {
-        apply_update(&endpoint, &args.output)?;
+        apply_update(&endpoint, &args.output, endpoint_auth.as_ref())?;
         if result.state.highest_mod_sequence.is_some() {
             write_cursor(&args.state, result.state)?;
         } else {
@@ -207,11 +231,59 @@ fn sync(args: SyncArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
     Ok(())
 }
 
+struct SparqlAuthentication {
+    config_line: String,
+}
+
+fn sparql_authentication(
+    args: &SyncArgs,
+) -> Result<Option<SparqlAuthentication>, Box<dyn std::error::Error + Send + Sync>> {
+    let Some(kind) = args.sparql_auth else {
+        return Ok(None);
+    };
+    let variable = args
+        .sparql_auth_env
+        .as_deref()
+        .expect("clap requires --sparql-auth-env");
+    let secret = env::var(variable).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("SPARQL authentication environment variable {variable:?} is not set"),
+        )
+    })?;
+    if secret.contains(['\r', '\n']) {
+        return Err("SPARQL authentication values must not contain newlines".into());
+    }
+    let config_line = match kind {
+        SparqlAuthArg::Bearer => format!(
+            "header = \"Authorization: Bearer {}\"\n",
+            curl_config_escape(&secret)
+        ),
+        SparqlAuthArg::Basic => format!("user = \"{}\"\n", curl_config_escape(&secret)),
+        SparqlAuthArg::Header => {
+            let name = args
+                .sparql_header_name
+                .as_deref()
+                .ok_or("--sparql-header-name is required with --sparql-auth header")?;
+            if name.contains(['\r', '\n', ':']) {
+                return Err("SPARQL header names must not contain colons or newlines".into());
+            }
+            format!("header = \"{name}: {}\"\n", curl_config_escape(&secret))
+        }
+    };
+    Ok(Some(SparqlAuthentication { config_line }))
+}
+
+fn curl_config_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 fn apply_update(
     endpoint: &str,
     update_path: &PathBuf,
+    authentication: Option<&SparqlAuthentication>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let status = ProcessCommand::new("curl")
+    let mut child = ProcessCommand::new("curl")
         .args([
             "--fail-with-body",
             "--silent",
@@ -224,7 +296,29 @@ fn apply_update(
         ])
         .arg(format!("@{}", update_path.display()))
         .arg(endpoint)
-        .status()?;
+        // `curl --config -` reads a config from stdin. It keeps credentials out
+        // of the process command line and avoids writing a temporary secret file.
+        .args(
+            authentication
+                .map(|_| ["--config", "-"])
+                .into_iter()
+                .flatten(),
+        )
+        .stdin(
+            authentication
+                .is_some()
+                .then_some(Stdio::piped())
+                .unwrap_or_else(Stdio::null),
+        )
+        .spawn()?;
+    if let Some(authentication) = authentication {
+        child
+            .stdin
+            .as_mut()
+            .expect("piped curl stdin")
+            .write_all(authentication.config_line.as_bytes())?;
+    }
+    let status = child.wait()?;
     if !status.success() {
         return Err(
             format!("SPARQL endpoint rejected the update (curl exited with {status})").into(),
